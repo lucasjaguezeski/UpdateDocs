@@ -1,0 +1,124 @@
+# UpdateDocs
+
+O UpdateDocs tem como objetivo automatizar a documentação de projetos utilizando inteligência artificial. A cada commit, o script [atualizar_docs.py](c:/Users/lucas/Desktop/UpdateDocs/atualizar_docs.py) atualiza a documentação do projeto, considerando as alterações realizadas no código-fonte.
+
+---
+
+## Sobre o Script
+
+O script [atualizar_docs.py](c:/Users/lucas/Desktop/UpdateDocs/atualizar_docs.py) realiza as seguintes operações:
+
+- **Validação**: Verifica o diretório do repositório e a validade do hash do commit.
+- **Diff e Arquivos Editados**: Obtém a lista de arquivos alterados e o diff específico de cada um.
+- **Mapeamento entre Código e Documentação**: Gera o caminho dos arquivos de documentação correspondentes aos arquivos de código-fonte (por exemplo, substituindo a pasta `src` por `docs` e a extensão `.py` por `.md`).
+- **Atualização de Documentação**: Lê o conteúdo atual dos arquivos de documentação e utiliza uma LLM (por meio da biblioteca LangChain) para gerar atualizações em Markdown.
+- **Aplicação das Alterações**: Atualiza os arquivos de documentação com o novo conteúdo sugerido.
+
+---
+
+## Como Utilizar?
+
+### 1. Configure o seu post-commit
+
+Siga os passos abaixo para adicionar o script ao hook `post-commit` no Git:
+
+1. **Abra o terminal.**
+2. **Navegue até o diretório do seu repositório Git:**
+    ```sh
+    cd /caminho/para/seu/repositorio
+    ```
+3. **Crie o diretório de hooks (caso não exista):**
+    ```sh
+    mkdir -p .git/hooks
+    ```
+4. **Edite o arquivo `post-commit`:**
+    ```sh
+    nano .git/hooks/post-commit
+    ```
+5. **Adicione o seguinte conteúdo:**
+    ```sh
+    #!/bin/bash
+
+    # Ir para o diretório raiz do repositório
+    REPO_DIR=$(git rev-parse --show-toplevel) || exit
+
+    # Capturar o hash do commit mais recente
+    COMMIT_HASH=$(git rev-parse HEAD)
+
+    # Ir para o diretório onde está o atualizar_docs.py
+    cd ~/caminho/para/UpdateDocs || exit
+
+    # Executar o script Python com o caminho do repositório e o hash do commit
+    python atualizar_docs.py "$REPO_DIR" "$COMMIT_HASH"
+    ```
+6. **Salve o arquivo e saia do editor** (no Nano: `Ctrl + O` para salvar e `Ctrl + X` para sair).
+7. **Torne o arquivo executável:**
+    ```sh
+    chmod +x .git/hooks/post-commit
+    ```
+
+### 2. Configure a sua API do Gemini Gratuitamente
+
+#### Passo 1: Gerar a Chave API
+
+1. Acesse o site do Gemini: [Gemini API Documentation](https://ai.google.dev/gemini-api/docs?hl=pt-br).
+2. Siga as instruções para criar sua conta e gerar uma chave API.
+3. Copie a chave gerada e mantenha-a em local seguro.
+
+#### Passo 2: Configurar a Variável de Ambiente
+
+1. **Abra o terminal.**
+2. **Adicione a chave API como variável de ambiente `GOOGLE_API_KEY`:**
+
+   **No Linux ou macOS:**
+   - Edite seu arquivo de configuração (por exemplo, `~/.bashrc`):
+     ```sh
+     nano ~/.bashrc
+     ```
+   - Adicione a linha:
+     ```sh
+     export GOOGLE_API_KEY="sua-chave-api-aqui"
+     ```
+   - Salve e feche o editor, depois execute:
+     ```sh
+     source ~/.bashrc
+     ```
+
+   **No Windows:**
+   - Abra o Prompt de Comando como administrador e execute:
+     ```cmd
+     setx GOOGLE_API_KEY "sua-chave-api-aqui"
+     ```
+   - Feche e abra novamente o Prompt de Comando para que as alterações tenham efeito.
+
+---
+
+## Estrutura de Pastas
+
+Para que o código funcione corretamente, os arquivos de documentação devem ter a mesma estrutura dos arquivos de código-fonte, alterando apenas a pasta e a extensão dos arquivos. Veja um exemplo:
+
+```plaintext
+meu_projeto/
+├── src/
+│   ├── Main.java
+│   ├── utils/
+│   │   └── Helper.py
+│   └── components/
+│       └── Button.js
+└── docs/
+    ├── Main.md
+    ├── utils/
+    │   └── Helper.md
+    └── components/
+        └── Button.md
+````
+
+**Nota:** Certifique-se de que a estrutura de diretórios e os nomes dos arquivos estejam corretos para garantir que o caminho do arquivo de documentação seja gerado corretamente.
+
+---
+
+## Considerações Finais
+
+Após configurar o `post-commit` e a chave api, o arquivo `atualizar_docs.py` será acionado automaticamente a cada commit, mantendo a documentação do seu projeto sempre atualizada com base nas alterações do código-fonte.
+
+Sinta-se à vontade para contribuir e sugerir melhorias para este projeto! 🚀🚀🚀
