@@ -210,12 +210,20 @@ def update_doc_lines(file_path, alteracoes_json):
             # Substitui as linhas no intervalo [inicio-1, fim)
             linhas[inicio - 1: fim] = novas_linhas
         
-        # Escreve as linhas atualizadas de volta no arquivo
-        with open(file_path, "w", encoding="utf-8") as file:
-            file.writelines(linhas)
+        return linhas
         
     except Exception as e:
         raise ValueError(f"Erro ao atualizar o arquivo: {e}")
+    
+def save_documentation_changes(file_path, updated_lines):
+    """
+    Escreve as linhas atualizadas de volta para o arquivo de documentação.
+    """
+    try:
+        with open(file_path, "w", encoding="utf-8") as file:
+            file.writelines(updated_lines)
+    except Exception as e:
+        raise ValueError(f"Erro ao salvar as alterações no arquivo: {e}")
 
 def main():
     # Configuração inicial
@@ -240,8 +248,11 @@ def main():
         # Atualiza a documentação com base no diff específico
         updated_content = update_documentation_with_llm(file_diff, documentation_content)
 
-        # Salva a documentação atualizada
-        update_doc_lines(doc_path, updated_content)
+        # Atualiza o conteúdo da documentação no arquivo
+        updated_lines = update_doc_lines(doc_path, updated_content)
+
+        # Salva as alterações no arquivo
+        save_documentation_changes(doc_path, updated_lines)
 
 if __name__ == "__main__":
     main()
