@@ -6,6 +6,7 @@ from langchain_google_genai import GoogleGenerativeAI
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+from interface import approve_changes
 
 def get_cfg():
     """
@@ -98,7 +99,7 @@ def get_documentation_content(doc_path):
     if os.path.isfile(doc_path):
         try:
             with open(doc_path, "r", encoding="utf-8") as doc_file:
-                linhas = doc_file.read()
+                linhas = doc_file.readlines()  # Agora cada item em "linhas" é uma linha do arquivo
 
                 # Prefixa cada linha com o número da linha (base 1)
                 documentation_content = "".join(f"{i+1}: {linha}" for i, linha in enumerate(linhas))
@@ -175,12 +176,12 @@ def update_documentation_with_llm(commit_diff, documentation_content):
     )
     
     # Executa a cadeia de execução
-    updated_doc = chain.invoke({
+    changes = chain.invoke({
         "commit_diff": commit_diff,
         "documentation_content": documentation_content
     })
     
-    return updated_doc
+    return changes
 
 def update_doc_lines(file_path, alteracoes_json):
     try:
@@ -213,7 +214,7 @@ def update_doc_lines(file_path, alteracoes_json):
         return linhas
         
     except Exception as e:
-        raise ValueError(f"Erro ao atualizar o arquivo: {e}")
+        raise ValueError(f"Erro ao atualizar a documentação: {e}")
     
 def save_documentation_changes(file_path, updated_lines):
     """
@@ -246,13 +247,17 @@ def main():
         documentation_content = get_documentation_content(doc_path)
 
         # Atualiza a documentação com base no diff específico
-        updated_content = update_documentation_with_llm(file_diff, documentation_content)
+        changes = update_documentation_with_llm(file_diff, documentation_content)
 
         # Atualiza o conteúdo da documentação no arquivo
-        updated_lines = update_doc_lines(doc_path, updated_content)
+        updated_lines = update_doc_lines(doc_path, changes)
 
-        # Salva as alterações no arquivo
-        save_documentation_changes(doc_path, updated_lines)
+        # Exibe as alterações propostas e solicita aprovação
+        approved = approve_changes(doc_path, updated_lines, changes)
+
+        if approved:
+            # Salva as alterações no arquivo
+            save_documentation_changes(doc_path, updated_lines)
 
 if __name__ == "__main__":
     main()
