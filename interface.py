@@ -261,8 +261,8 @@ def approve_changes(left_file, right_text, changes):
     header_left_rect = pygame.Rect(panel_left_x, panel_y, panel_width, header_height)
     header_right_rect = pygame.Rect(panel_right_x, panel_y, panel_width, header_height)
     
-    title_left = "Documentação antiga"
-    title_right = "Documentação nova"
+    title_left = "Current Documentation:"
+    title_right = "New Documentation:"
     
     clock = pygame.time.Clock()
     running = True
@@ -284,8 +284,8 @@ def approve_changes(left_file, right_text, changes):
     # Renderize todo o conteúdo do painel esquerdo em uma superfície maior
     left_content_height = calculate_markdown_height(left_text, fonts, max_width=panel_width - 20)
     right_content_height = calculate_markdown_height(right_text, fonts, max_width=panel_width - 20)
-    left_text_surface = pygame.Surface((panel_width - 20, left_content_height))
-    right_text_surface = pygame.Surface((panel_width - 20, right_content_height))
+    left_text_surface = pygame.Surface((panel_width - 20, 740))
+    right_text_surface = pygame.Surface((panel_width - 20, 740))
     
     while running:
         clock.tick(60)
@@ -375,8 +375,8 @@ def approve_changes(left_file, right_text, changes):
         pygame.draw.rect(screen, (0, 128, 0), aprovar_rect, border_radius=5)  # Botão Aprovar (verde)
         pygame.draw.rect(screen, (128, 0, 0), recusar_rect, border_radius=5)   # Botão Recusar (vermelho)
         
-        aprovar_text = font_header.render("Aprovar", True, (255, 255, 255))
-        recusar_text = font_header.render("Recusar", True, (255, 255, 255))
+        aprovar_text = font_header.render("Accept", True, (255, 255, 255))
+        recusar_text = font_header.render("Discard", True, (255, 255, 255))
         
         aprovar_text_rect = aprovar_text.get_rect(center=aprovar_rect.center)
         recusar_text_rect = recusar_text.get_rect(center=recusar_rect.center)
