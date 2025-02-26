@@ -5,7 +5,8 @@ import CodeBlock from './CodeBlock';
 const API_URL = 'http://localhost:5000/approve_changes';
 const DOCUMENTATION_FILES = {
   current: 'current_documentation.md',
-  new: 'new_documentation.md'
+  new: 'new_documentation.md',
+  continue_exec: 'continue_exec.txt'
 };
 
 const RETRY_INTERVAL = 3000;
@@ -48,9 +49,10 @@ function App() {
 
     const fetchWithRetry = async () => {
       try {
-        const [currentDoc, newDoc] = await Promise.all([
+        const [currentDoc, newDoc, continueExec] = await Promise.all([
           fetchText(DOCUMENTATION_FILES.current),
-          fetchText(DOCUMENTATION_FILES.new)
+          fetchText(DOCUMENTATION_FILES.new),
+          fetchText(DOCUMENTATION_FILES.continue_exec)
         ]);
 
         // Verifica se os arquivos têm conteúdo
@@ -62,6 +64,7 @@ function App() {
           setDocumentation({
             current: currentDoc,
             new: newDoc,
+            continueExec: continueExec,
             isLoading: false,
             error: null
           });
@@ -111,7 +114,9 @@ function App() {
     } catch (error) {
       console.error('Approval error:', error);
     } finally {
-      window.close();
+      if (parseInt(documentation.continueExec) === 0) {
+        window.close();
+      }
     }
   };
 

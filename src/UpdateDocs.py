@@ -309,9 +309,15 @@ def main():
         updated_lines = update_doc_lines(doc_path, changes)
         new_documentation = "".join(updated_lines)
 
+        # Verifica se é o último arquivo editado
+        last_index = len(edited_files) - 1
+        current_index = edited_files.index(source_file)
+        continueExec = 0 if current_index == last_index else 1
+
         # Cria arquivos temporários para exibir as alterações propostas
         create_temp_file(r"..\public\current_documentation.md", current_documentation)
         create_temp_file(r"..\public\new_documentation.md", new_documentation)
+        create_temp_file(r"..\public\continue_exec.txt", str(continueExec))
 
         # Exibe as alterações propostas e solicita aprovação
         approved = approve_changes()
@@ -320,9 +326,10 @@ def main():
             # Salva as alterações no arquivo
             save_documentation_changes(doc_path, updated_lines)
         
-        # Deleta os arquivos temporários
+        # Limpa os arquivos temporários
         clear_temp_file(r"..\public\current_documentation.md")
         clear_temp_file(r"..\public\new_documentation.md")
+        clear_temp_file(r"..\public\continue_exec.txt")
         
     # Finaliza o servidor React
     interface.stop_server()
