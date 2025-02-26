@@ -6,7 +6,15 @@ from langchain_google_genai import GoogleGenerativeAI
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
-from interface import approve_changes
+from request import server_init, approve_changes
+from interface_controller import ReactManager
+import logging
+
+logging.basicConfig(
+    filename=r'logs\errors.log',
+    level=logging.ERROR,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 def get_cfg():
     """
@@ -18,6 +26,7 @@ def get_cfg():
 
     # Verifica se o diretório do repositório existe
     if not os.path.isdir(repo_path):
+        logging.error(f"Diretório do repositório não encontrado: {repo_path}")
         raise ValueError(f"Diretório do repositório não encontrado: {repo_path}")
     
     # Verifica se o hash do commit é válido
@@ -28,9 +37,18 @@ def get_cfg():
             cwd=repo_path  # Usa o diretório do repositório especificado
         )
     except subprocess.CalledProcessError as e:
+        logging.error(f"Hash do commit inválido: {commit_hash}")
         raise ValueError(f"Hash do commit inválido: {commit_hash}")
 
     return repo_path, commit_hash
+
+def save_documentation_changes(file_path, updated_lines):
+    try:
+        with open(file_path, "w", encoding="utf-8") as file:
+            file.writelines(updated_lines)
+    except Exception as e:
+        logging.error(f"Erro ao salvar as alterações no arquivo: {e}")
+        raise ValueError(f"Erro ao salvar as alterações no arquivo: {e}")
     
 def get_file_diff(repo_path, commit_hash, file_path):
     """
@@ -47,6 +65,7 @@ def get_file_diff(repo_path, commit_hash, file_path):
         )
         return result.stdout
     except subprocess.CalledProcessError as e:
+        logging.error(f"Erro ao obter o diff do arquivo {file_path}: {e.stderr}")
         raise ValueError(f"Erro ao obter o diff do arquivo {file_path}: {e.stderr.strip()}")
     
 def get_edited_files(repo_path, commit_hash):
@@ -64,6 +83,7 @@ def get_edited_files(repo_path, commit_hash):
         )
         return result.stdout.splitlines()
     except subprocess.CalledProcessError as e:
+        logging.error(f"Erro ao obter os arquivos editados: {e.stderr}")
         raise ValueError(f"Erro ao obter os arquivos editados: {e.stderr.strip()}")
     
 def get_doc_path(repo_path, src_file):
@@ -99,15 +119,17 @@ def get_documentation_content(doc_path):
     if os.path.isfile(doc_path):
         try:
             with open(doc_path, "r", encoding="utf-8") as doc_file:
-                linhas = doc_file.readlines()  # Agora cada item em "linhas" é uma linha do arquivo
+                lines = doc_file.readlines()
+                documentation = "".join(lines)
 
                 # Prefixa cada linha com o número da linha (base 1)
-                documentation_content = "".join(f"{i+1}: {linha}" for i, linha in enumerate(linhas))
+                enumerated_documentation = "".join(f"{i+1}: {line}" for i, line in enumerate(lines))
 
-                return documentation_content
+                return documentation, enumerated_documentation
         except Exception as e:
             raise ValueError(f"Erro ao ler o arquivo de documentação: {e}")
     else:
+        logging.error(f"Aviso: Arquivo de documentação não encontrado em {doc_path}")
         raise ValueError(f"Aviso: Arquivo de documentação não encontrado em {doc_path}")
 
 def update_documentation_with_llm(commit_diff, documentation_content):
@@ -133,7 +155,7 @@ def update_documentation_with_llm(commit_diff, documentation_content):
 
     Sua resposta DEVE ser um JSON válido, sem nenhum comentário ou explicação adicional, no seguinte formato:
 
-    {exemplo}
+    {example}
 
     Certifique-se de:
     - Utilizar apenas números inteiros para "inicio" e "fim".
@@ -150,7 +172,7 @@ def update_documentation_with_llm(commit_diff, documentation_content):
         template=prompt_template_str
     )
 
-    exemplo = """
+    example = """
     {
     "alteracoes": [
         {
@@ -168,52 +190,57 @@ def update_documentation_with_llm(commit_diff, documentation_content):
 
     # Cria a cadeia de execução
     chain = (
-        RunnablePassthrough.assign(commit_diff=lambda _: commit_diff, documentation_content=lambda _: documentation_content, exemplo=lambda _: exemplo)
+        RunnablePassthrough.assign(commit_diff=lambda _: commit_diff, documentation_content=lambda _: documentation_content, example=lambda _: example)
         | prompt
         | llm.bind(stop=["\n```"])
         | StrOutputParser()
         | RunnableLambda(lambda x: (x.replace("```json\n", "")))
     )
-    
-    # Executa a cadeia de execução
-    changes = chain.invoke({
-        "commit_diff": commit_diff,
-        "documentation_content": documentation_content
-    })
-    
-    return changes
 
-def update_doc_lines(file_path, alteracoes_json):
     try:
-        # Se alteracoes_json for uma string, converte para dict
-        if isinstance(alteracoes_json, str):
-            alteracoes_json = json.loads(alteracoes_json)
+        # Executa a cadeia de execução
+        changes = chain.invoke({
+            "commit_diff": commit_diff,
+            "documentation_content": documentation_content
+        })
+    
+        return changes
+    except Exception as e:
+        logging.error(f"Erro ao atualizar a documentação com a LLM: {e}")
+        raise ValueError(f"Erro ao atualizar a documentação com a LLM: {e}")
+
+def update_doc_lines(file_path, changes_json):
+    try:
+        # Se changes_json for uma string, converte para dict
+        if isinstance(changes_json, str):
+            changes_json = json.loads(changes_json)
             
-        alteracoes = alteracoes_json.get("alteracoes", [])
+        changes = changes_json.get("alteracoes", [])
         
         # Lê o conteúdo do arquivo em uma lista de linhas
         with open(file_path, "r", encoding="utf-8") as file:
-            linhas = file.readlines()
+            lines = file.readlines()
         
         # Ordena as alterações em ordem decrescente pelo número da linha de início
         # Assim, alterações na parte inferior não interferem nos índices das anteriores.
-        alteracoes.sort(key=lambda alt: int(alt["inicio"]), reverse=True)
+        changes.sort(key=lambda alt: int(alt["inicio"]), reverse=True)
         
-        for alt in alteracoes:
-            inicio = int(alt["inicio"])
-            fim = int(alt["fim"])
-            novo_conteudo = alt["novo_conteudo"]
+        for change in changes:
+            start = int(change["inicio"])
+            end = int(change["fim"])
+            new_content = change["novo_conteudo"]
             
             # Divide o novo conteúdo em linhas e garante que cada linha termine com \n
-            novas_linhas = novo_conteudo.splitlines()
-            novas_linhas = [linha + "\n" for linha in novas_linhas]
+            new_lines = new_content.splitlines()
+            new_lines = [line + "\n" for line in new_lines]
             
             # Substitui as linhas no intervalo [inicio-1, fim)
-            linhas[inicio - 1: fim] = novas_linhas
+            lines[start - 1: end] = new_lines
         
-        return linhas
+        return lines
         
     except Exception as e:
+        logging.error(f"Erro ao atualizar a documentação: {e}")
         raise ValueError(f"Erro ao atualizar a documentação: {e}")
     
 def save_documentation_changes(file_path, updated_lines):
@@ -224,14 +251,43 @@ def save_documentation_changes(file_path, updated_lines):
         with open(file_path, "w", encoding="utf-8") as file:
             file.writelines(updated_lines)
     except Exception as e:
+        logging.error(f"Erro ao salvar as alterações no arquivo: {e}")
         raise ValueError(f"Erro ao salvar as alterações no arquivo: {e}")
+    
+def create_temp_file(file_path, content):
+    """
+    Cria um arquivo temporário com o conteúdo fornecido.
+    """
+    try:
+        with open(file_path, "w", encoding="utf-8") as file:
+            file.write(content)
+    except Exception as e:
+        logging.error(f"Erro ao criar o arquivo temporário: {e}")
+        raise ValueError(f"Erro ao criar o arquivo temporário: {e}")
+    
+def clear_temp_file(file_path):
+    """
+    Limpa o conteúdo de um arquivo temporário.
+    """
+    try:
+        with open(file_path, "w", encoding="utf-8") as file:
+            file.write("")
+    except Exception as e:
+        logging.error(f"Erro ao limpar o arquivo temporário: {e}")
+        raise ValueError(f"Erro ao limpar o arquivo temporário: {e}")
 
 def main():
     # Configuração inicial
     repo_path, commit_hash = get_cfg()
 
+    # Inicia o servidor React
+    interface = ReactManager(os.path.dirname(os.path.abspath(__file__)))
+    interface.start_server()
+
     # Obtém os arquivos editados no commit
     edited_files = get_edited_files(repo_path, commit_hash)
+
+    server_init()
 
     # Para cada arquivo editado que tenha documento associado
     for source_file in edited_files:
@@ -244,20 +300,36 @@ def main():
         file_diff = get_file_diff(repo_path, commit_hash, source_file)
 
         # Lê o conteúdo atual da documentação
-        documentation_content = get_documentation_content(doc_path)
+        current_documentation, enumerated_documentation = get_documentation_content(doc_path)
 
         # Atualiza a documentação com base no diff específico
-        changes = update_documentation_with_llm(file_diff, documentation_content)
+        changes = update_documentation_with_llm(file_diff, enumerated_documentation)
 
         # Atualiza o conteúdo da documentação no arquivo
         updated_lines = update_doc_lines(doc_path, changes)
+        new_documentation = "".join(updated_lines)
+
+        # Cria arquivos temporários para exibir as alterações propostas
+        create_temp_file(r"..\public\current_documentation.md", current_documentation)
+        create_temp_file(r"..\public\new_documentation.md", new_documentation)
 
         # Exibe as alterações propostas e solicita aprovação
-        approved = approve_changes(doc_path, updated_lines, changes)
+        approved = approve_changes()
 
         if approved:
             # Salva as alterações no arquivo
             save_documentation_changes(doc_path, updated_lines)
+        
+        # Deleta os arquivos temporários
+        clear_temp_file(r"..\public\current_documentation.md")
+        clear_temp_file(r"..\public\new_documentation.md")
+        
+    # Finaliza o servidor React
+    interface.stop_server()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        logging.error(f"Erro ao executar o script: {e}")
+        sys.exit(1)
