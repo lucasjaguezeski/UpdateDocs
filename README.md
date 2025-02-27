@@ -1,12 +1,12 @@
 # UpdateDocs
 
-O UpdateDocs tem como objetivo automatizar a documentação de projetos utilizando inteligência artificial. A cada commit, o script [atualizar_docs.py](c:/Users/lucas/Desktop/UpdateDocs/atualizar_docs.py) atualiza a documentação do projeto, considerando as alterações realizadas no código-fonte.
+O UpdateDocs tem como objetivo automatizar a documentação de projetos utilizando inteligência artificial. A cada commit, o script [UpdateDocs.py](c:/Users/lucas/Desktop/UpdateDocs/UpdateDocs.py) atualiza a documentação do projeto, considerando as alterações realizadas no código-fonte.
 
 ---
 
 ## Sobre o Script
 
-O script [atualizar_docs.py](c:/Users/lucas/Desktop/UpdateDocs/atualizar_docs.py) realiza as seguintes operações:
+O script [UpdateDocs.py](c:/Users/lucas/Desktop/UpdateDocs/UpdateDocs.py) realiza as seguintes operações:
 
 - **Validação**: Verifica o diretório do repositório e a validade do hash do commit.
 - **Diff e Arquivos Editados**: Obtém a lista de arquivos alterados e o diff específico de cada um.
@@ -45,11 +45,11 @@ Siga os passos abaixo para adicionar o script ao hook `post-commit` no Git:
     # Capturar o hash do commit mais recente
     COMMIT_HASH=$(git rev-parse HEAD)
 
-    # Ir para o diretório onde está o atualizar_docs.py
+    # Ir para o diretório onde está o UpdateDocs.py
     cd ~/caminho/para/UpdateDocs || exit
 
     # Executar o script Python com o caminho do repositório e o hash do commit
-    python atualizar_docs.py "$REPO_DIR" "$COMMIT_HASH"
+    python UpdateDocs.py "$REPO_DIR" "$COMMIT_HASH"
     ```
 6. **Salve o arquivo e saia do editor** (no Nano: `Ctrl + O` para salvar e `Ctrl + X` para sair).
 7. **Torne o arquivo executável:**
@@ -119,6 +119,6 @@ meu_projeto/
 
 ## Considerações Finais
 
-Após configurar o `post-commit` e a chave api, o arquivo `atualizar_docs.py` será acionado automaticamente a cada commit, mantendo a documentação do seu projeto sempre atualizada com base nas alterações do código-fonte.
+Após configurar o `post-commit` e a chave api, o arquivo `UpdateDocs.py` será acionado automaticamente a cada commit, mantendo a documentação do seu projeto sempre atualizada com base nas alterações do código-fonte.
 
 Sinta-se à vontade para contribuir e sugerir melhorias para este projeto! 🚀🚀🚀
