@@ -64,7 +64,7 @@ function App() {
           setDocumentation({
             current: currentDoc,
             new: newDoc,
-            continueExec: continueExec,
+            continueExec: parseInt(continueExec),
             isLoading: false,
             error: null
           });
@@ -114,7 +114,7 @@ function App() {
     } catch (error) {
       console.error('Approval error:', error);
     } finally {
-      if (parseInt(documentation.continueExec) === 0) {
+      if (!documentation.continueExec) {
         window.close();
       }
     }
