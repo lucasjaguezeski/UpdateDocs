@@ -117,6 +117,27 @@ meu_projeto/
 
 ---
 
+## Lista de Dependências
+### Backend
+- **Python 3.x** (versão 3.7 ou superior recomendada)
+- **FastAPI** – para a criação do endpoint REST
+- **uvicorn** – para executar o servidor ASGI do FastAPI
+- **pydantic** – para validação dos dados (já vem como dependência do FastAPI)
+- **langchain_google_genai** – utilizado para interagir com o Google Generative AI
+- **langchain** – para manipulação de prompts e execução de LLMs
+- **langchain_core** – para os output parsers e runnables
+
+### Frontend
+- **Node.js** – runtime necessário para executar o ambiente Node e o NPM (versão LTS recomendada)
+- **npm ou yarn** – gerenciador de pacotes
+- **react** – biblioteca principal para construção da interface
+- **react-dom** – para renderização dos componentes no DOM
+- **react-scripts** – se estiver utilizando Create React App ou estrutura similar
+- **react-markdown** – para renderização de Markdown
+- **remark-gfm** – para suporte ao GitHub Flavored Markdown
+- **react-syntax-highlighter** – para realce de sintaxe dos blocos de código
+- **prismjs** – (por trás do react-syntax-highlighter) para estilos (por exemplo, com o tema `vscDarkPlus`)
+
 ## Considerações Finais
 
 Após configurar o `post-commit` e a chave api, o arquivo `UpdateDocs.py` será acionado automaticamente a cada commit, mantendo a documentação do seu projeto sempre atualizada com base nas alterações do código-fonte.

@@ -117,6 +117,27 @@ my_project/
 
 ---
 
+## Dependencies List
+### Backend
+- **Python 3.x** (version 3.7 or higher recommended)
+- **FastAPI** – for creating the REST endpoint
+- **uvicorn** – to run the FastAPI ASGI server
+- **pydantic** – for data validation (comes as a dependency with FastAPI)
+- **langchain_google_genai** – used to interact with Google Generative AI
+- **langchain** – for handling prompts and running LLMs
+- **langchain_core** – for output parsers and runnables
+
+### Frontend
+- **Node.js** – runtime required to run Node environment and NPM (LTS version recommended)
+- **npm or yarn** – package manager
+- **react** – main library for building the interface
+- **react-dom** – for rendering components in the DOM
+- **react-scripts** – if using Create React App or similar setup
+- **react-markdown** – for rendering Markdown
+- **remark-gfm** – for GitHub Flavored Markdown support
+- **react-syntax-highlighter** – for syntax highlighting of code blocks
+- **prismjs** – (underlying library for react-syntax-highlighter) for styles (e.g., with the `vscDarkPlus` theme)
+
 ## Final Considerations
 
 Once you configure the `post-commit` hook and the API key, the `UpdateDocs.py` file will automatically be triggered with every commit, keeping your project documentation updated based on the changes in the source code.
