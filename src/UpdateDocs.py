@@ -10,6 +10,10 @@ from request import server_init, approve_changes
 from interface_controller import ReactManager
 import logging
 
+SOURCE_EXTENSIONS = [".java", ".py", ".js", ".ts", ".jsx", ".tsx", ".c",
+                  ".cpp", ".cs", ".html", ".rb", ".r", ".php", ".go", ".rs",
+                  ".swift", ".sql"] # Pode ser expandido para outras extensões
+
 logging.basicConfig(
     filename=r'logs\errors.log',
     level=logging.ERROR,
@@ -71,7 +75,7 @@ def get_file_diff(repo_path, commit_hash, file_path):
 def get_edited_files(repo_path, commit_hash):
     """
     Obtém uma lista de arquivos editados em um commit específico usando o Git.
-    Retorna uma lista de nomes de arquivos.
+    Retorna uma lista de nomes de arquivos que possuem extensões definidas em SOURCE_EXTENSIONS.
     """
     try:
         result = subprocess.run(
@@ -81,7 +85,10 @@ def get_edited_files(repo_path, commit_hash):
             check=True,
             cwd=repo_path  # Usa o diretório do repositório especificado
         )
-        return result.stdout.splitlines()
+        
+        files = result.stdout.splitlines()
+        return [file for file in files if os.path.splitext(file)[1] in SOURCE_EXTENSIONS]
+    
     except subprocess.CalledProcessError as e:
         logging.error(f"Erro ao obter os arquivos editados: {e.stderr}")
         raise ValueError(f"Erro ao obter os arquivos editados: {e.stderr.strip()}")
@@ -89,20 +96,18 @@ def get_edited_files(repo_path, commit_hash):
 def get_doc_path(repo_path, src_file):
     """
     Gera e retorna o caminho do arquivo de documentação (.md) correspondente a um arquivo de código-fonte.
-    Verifica se o arquivo de entrada possui uma das extensões permitidas (".java", ".py", ".js", ".ts")
-    e se contém a palavra "src" em seu caminho. Caso essas condições sejam atendidas, substitui a extensão
-    origem por ".md" e a pasta "src" por "docs", concatenando com o caminho do repositório fornecido. Se não
-    for possível aplicar a transformação, retorna None.
+    Verifica se o arquivo de entrada possui uma das extensões cadastradas e se contém a palavra "src" em seu caminho.
+    Caso essas condições sejam atendidas, substitui a extensão origem por ".md" e a pasta "src" por "docs",
+    concatenando com o caminho do repositório fornecido. Se não for possível aplicar a transformação, retorna None.
     Parâmetros:
         repo_path (str): Caminho do repositório onde se encontram os arquivos.
         src_file (str): Caminho relativo do arquivo de código-fonte.
     Retorna:
         str ou None: Caminho completo do arquivo de documentação se o arquivo for compatível; caso contrário, None.
     """
-    src_extensions = [".java", ".py", ".js", ".ts"] # Pode ser expandido para outras extensões de código-fonte
 
-    if any(src_file.endswith(ext) for ext in src_extensions) and "src" in src_file:
-        for ext in src_extensions:
+    if any(src_file.endswith(ext) for ext in SOURCE_EXTENSIONS) and "src" in src_file:
+        for ext in SOURCE_EXTENSIONS:
             if src_file.endswith(ext):
                 doc_file_name = src_file.replace(ext, ".md").replace("src", "docs")
                 break
@@ -286,6 +291,7 @@ def main():
 
     # Obtém os arquivos editados no commit
     edited_files = get_edited_files(repo_path, commit_hash)
+    logging.error(f"Arquivos editados: {edited_files}")
 
     server_init()
 
