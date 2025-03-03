@@ -46,9 +46,12 @@ Follow the steps below to add the script to the Git `post-commit` hook:
     COMMIT_HASH=$(git rev-parse HEAD)
 
     # Navigate to the directory where UpdateDocs.py is located
-    cd ~/path/to/UpdateDocs || exit
+    cd ~/path/to/UpdateDocs.py || exit
 
     # Execute the Python script with the repository path and commit hash
+    # If you are using a virtual environment:
+    #& C:\\path\\to\\venv\\Scripts\\Activate.ps1
+
     python UpdateDocs.py "$REPO_DIR" "$COMMIT_HASH"
     ```
 6. **Save and exit the editor** (in Nano: `Ctrl + O` to save and `Ctrl + X` to exit).
@@ -90,6 +93,9 @@ Follow the steps below to add the script to the Git `post-commit` hook:
      setx GOOGLE_API_KEY "your-api-key-here"
      ```
    - Close and reopen Command Prompt for the changes to take effect.
+
+### **Important:**
+If you are using a virtual environment, the GOOGLE_API_KEY variable must be configured and accessible in this environment.
 
 ---
 
