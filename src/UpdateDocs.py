@@ -10,15 +10,15 @@ from request import server_init, approve_changes
 from interface_controller import ReactManager
 import logging
 
-SOURCE_EXTENSIONS = [".java", ".py", ".js", ".ts", ".jsx", ".tsx", ".c",
-                  ".cpp", ".cs", ".html", ".rb", ".r", ".php", ".go", ".rs",
-                  ".swift", ".sql"] # Pode ser expandido para outras extensões
-
 logging.basicConfig(
     filename=r'logs\errors.log',
     level=logging.ERROR,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
+
+SOURCE_EXTENSIONS = [".java", ".py", ".js", ".ts", ".jsx", ".tsx", ".c",
+                  ".cpp", ".cs", ".html", ".rb", ".r", ".php", ".go", ".rs",
+                  ".swift", ".sql"] # Pode ser expandido para outras extensões
 
 def get_cfg():
     """
@@ -45,14 +45,6 @@ def get_cfg():
         raise ValueError(f"Hash do commit inválido: {commit_hash}")
 
     return repo_path, commit_hash
-
-def save_documentation_changes(file_path, updated_lines):
-    try:
-        with open(file_path, "w", encoding="utf-8") as file:
-            file.writelines(updated_lines)
-    except Exception as e:
-        logging.error(f"Erro ao salvar as alterações no arquivo: {e}")
-        raise ValueError(f"Erro ao salvar as alterações no arquivo: {e}")
     
 def get_file_diff(repo_path, commit_hash, file_path):
     """
@@ -248,38 +240,43 @@ def update_doc_lines(file_path, changes_json):
         logging.error(f"Erro ao atualizar a documentação: {e}")
         raise ValueError(f"Erro ao atualizar a documentação: {e}")
     
-def save_documentation_changes(file_path, updated_lines):
+def manipulate_file(file_path, operation, content=None):
     """
-    Escreve as linhas atualizadas de volta para o arquivo de documentação.
+    Manipula um arquivo com operações específicas.
+
+    Parameters:
+    ----------
+    file_path : str
+        Caminho do arquivo a ser manipulado
+    operation : str
+        Tipo de operação: 'write_lines', 'write', 'clear', 'delete'
+    content : str, list, optional
+        Conteúdo a ser escrito no arquivo (para operações de escrita)
     """
     try:
+        if operation == "delete":
+            os.remove(file_path)
+            return
+            
         with open(file_path, "w", encoding="utf-8") as file:
-            file.writelines(updated_lines)
-    except Exception as e:
-        logging.error(f"Erro ao salvar as alterações no arquivo: {e}")
-        raise ValueError(f"Erro ao salvar as alterações no arquivo: {e}")
+            if operation == "write_lines" and isinstance(content, list):
+                file.writelines(content)
+            elif operation == "write":
+                file.write(str(content) if content else "")
+            elif operation == "clear":
+                file.write("")
+            else:
+                raise ValueError(f"Operação inválida: {operation} ou tipo de conteúdo incompatível")
     
-def create_temp_file(file_path, content):
-    """
-    Cria um arquivo temporário com o conteúdo fornecido.
-    """
-    try:
-        with open(file_path, "w", encoding="utf-8") as file:
-            file.write(content)
+    except FileNotFoundError:
+        logging.error(f"Arquivo não encontrado: {file_path}")
+        raise FileNotFoundError(f"Arquivo não encontrado: {file_path}")
+    except PermissionError:
+        logging.error(f"Permissão negada ao manipular arquivo: {file_path}")
+        raise PermissionError(f"Permissão negada ao manipular arquivo: {file_path}")
     except Exception as e:
-        logging.error(f"Erro ao criar o arquivo temporário: {e}")
-        raise ValueError(f"Erro ao criar o arquivo temporário: {e}")
-    
-def clear_temp_file(file_path):
-    """
-    Limpa o conteúdo de um arquivo temporário.
-    """
-    try:
-        with open(file_path, "w", encoding="utf-8") as file:
-            file.write("")
-    except Exception as e:
-        logging.error(f"Erro ao limpar o arquivo temporário: {e}")
-        raise ValueError(f"Erro ao limpar o arquivo temporário: {e}")
+        logging.error(f"Erro ao manipular o arquivo {file_path}: {e}")
+        raise ValueError(f"Erro ao manipular o arquivo: {e}")
 
 def main():
     # Configuração inicial
@@ -321,22 +318,27 @@ def main():
         continueExec = 0 if current_index == last_index else 1
 
         # Cria arquivos temporários para exibir as alterações propostas
-        create_temp_file(r"..\public\current_documentation.md", current_documentation)
-        create_temp_file(r"..\public\new_documentation.md", new_documentation)
-        create_temp_file(r"..\public\continue_exec.txt", str(continueExec))
+        manipulate_file(r"..\public\current_documentation.md", "write", content=current_documentation)
+        manipulate_file(r"..\public\new_documentation.md", "write", content=new_documentation)
+        manipulate_file(r"..\public\continue_exec.txt", "write", content=str(continueExec))
 
         # Exibe as alterações propostas e solicita aprovação
         approved = approve_changes()
 
         if approved:
             # Salva as alterações no arquivo
-            save_documentation_changes(doc_path, updated_lines)
+            manipulate_file(doc_path, "write_lines", content=updated_lines)
         
         # Limpa os arquivos temporários
-        clear_temp_file(r"..\public\current_documentation.md")
-        clear_temp_file(r"..\public\new_documentation.md")
-        clear_temp_file(r"..\public\continue_exec.txt")
-        
+        manipulate_file(r"..\public\current_documentation.md", "clear")
+        manipulate_file(r"..\public\new_documentation.md", "clear")
+        manipulate_file(r"..\public\continue_exec.txt", "clear")
+    
+    # Deleta os arquivos temporários
+    manipulate_file(r"..\public\current_documentation.md", "delete")
+    manipulate_file(r"..\public\new_documentation.md", "delete")
+    manipulate_file(r"..\public\continue_exec.txt", "delete")
+
     # Finaliza o servidor React
     interface.stop_server()
 
