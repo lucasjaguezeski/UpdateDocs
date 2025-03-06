@@ -1,5 +1,5 @@
 import sys
-import os
+import os, os.path
 import json
 import subprocess
 from langchain_google_genai import GoogleGenerativeAI
@@ -103,10 +103,11 @@ def get_doc_path(repo_path, src_file):
             if src_file.endswith(ext):
                 doc_file_name = src_file.replace(ext, ".md").replace("src", "docs")
                 break
-        doc_file = (f'{repo_path}/{doc_file_name}')
-        return doc_file
-    else:
+        doc_path = (f'{repo_path}/{doc_file_name}')
+        if os.path.isfile(doc_path):
+            return doc_path
         return None
+    return None
 
 def get_documentation_content(doc_path):
     """
