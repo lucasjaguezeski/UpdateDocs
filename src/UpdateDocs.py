@@ -10,6 +10,7 @@ from request import server_init, approve_changes
 from interface_controller import ReactManager
 import logging
 
+# Configuração do log de erros
 logging.basicConfig(
     filename=r'logs\errors.log',
     level=logging.ERROR,
@@ -19,6 +20,11 @@ logging.basicConfig(
 SOURCE_EXTENSIONS = [".java", ".py", ".js", ".ts", ".jsx", ".tsx", ".c",
                   ".cpp", ".cs", ".html", ".rb", ".r", ".php", ".go", ".rs",
                   ".swift", ".sql"] # Pode ser expandido para outras extensões
+
+# Caminhos dos arquivos temporários para exibir as alterações propostas
+CURRENT = r"..\public\current_documentation.md"
+NEW = r"..\public\new_documentation.md"
+CONTINUE = r"..\public\continue_exec.txt"
 
 def get_cfg():
     """
@@ -117,14 +123,20 @@ def get_documentation_content(doc_path):
     if os.path.isfile(doc_path):
         try:
             with open(doc_path, "r", encoding="utf-8") as doc_file:
+                # Lê o conteúdo do arquivo de documentação
                 lines = doc_file.readlines()
                 documentation = "".join(lines)
+
+                # Se o arquivo estiver vazio ou não tiver conteúdo, retorna None
+                if not lines or not documentation.strip():
+                    return None, None
 
                 # Prefixa cada linha com o número da linha (base 1)
                 enumerated_documentation = "".join(f"{i+1}: {line}" for i, line in enumerate(lines))
 
                 return documentation, enumerated_documentation
         except Exception as e:
+            logging.error(f"Erro ao ler o arquivo de documentação: {e}")
             raise ValueError(f"Erro ao ler o arquivo de documentação: {e}")
     else:
         logging.error(f"Aviso: Arquivo de documentação não encontrado em {doc_path}")
@@ -235,49 +247,85 @@ def update_doc_lines(file_path, changes_json):
             # Substitui as linhas no intervalo [inicio-1, fim)
             lines[start - 1: end] = new_lines
         
-        return lines
+        return "".join(lines)
         
     except Exception as e:
         logging.error(f"Erro ao atualizar a documentação: {e}")
         raise ValueError(f"Erro ao atualizar a documentação: {e}")
     
-def manipulate_file(file_path, operation, content=None):
+def manipulate_file(file_paths, operation, contents=None):
     """
-    Manipula um arquivo com operações específicas.
+    Manipula arquivos com operações específicas.
 
     Parameters:
     ----------
-    file_path : str
-        Caminho do arquivo a ser manipulado
+    file_paths : str ou list
+        Caminho(s) do(s) arquivo(s) a ser(em) manipulado(s)
     operation : str
-        Tipo de operação: 'write_lines', 'write', 'clear', 'delete'
-    content : str, list, optional
-        Conteúdo a ser escrito no arquivo (para operações de escrita)
+        Tipo de operação: 'write', 'clear', 'delete'
+    contents : str, list, None, optional
+        Conteúdo(s) a ser(em) escrito(s) no(s) arquivo(s) (para operações de escrita)
     """
     try:
-        if operation == "delete":
-            os.remove(file_path)
-            return
+        # Normaliza os parâmetros para listas
+        if not isinstance(file_paths, list):
+            file_paths = [file_paths]
             
-        with open(file_path, "w", encoding="utf-8") as file:
-            if operation == "write_lines" and isinstance(content, list):
-                file.writelines(content)
-            elif operation == "write":
-                file.write(str(content) if content else "")
-            elif operation == "clear":
-                file.write("")
-            else:
-                raise ValueError(f"Operação inválida: {operation} ou tipo de conteúdo incompatível")
-    
-    except FileNotFoundError:
-        logging.error(f"Arquivo não encontrado: {file_path}")
-        raise FileNotFoundError(f"Arquivo não encontrado: {file_path}")
-    except PermissionError:
-        logging.error(f"Permissão negada ao manipular arquivo: {file_path}")
-        raise PermissionError(f"Permissão negada ao manipular arquivo: {file_path}")
+        # Adapta contents para corresponder a file_paths
+        if contents is not None and not isinstance(contents, list):
+            contents = [contents]
+                
+        # Processa cada arquivo
+        for i, file_path in enumerate(file_paths):
+            if operation == "delete":
+                os.remove(file_path)
+                continue
+                
+            with open(file_path, "w", encoding="utf-8") as file:
+                if operation == "clear":
+                    file.write("")
+                elif operation == "write":
+                    file.write(str(contents[i]) if contents[i] is not None else "ERROR")
+                else:
+                    logging.error(f"Operação inválida: {operation}")
+                    raise ValueError(f"Operação inválida: {operation}")
+                    
+    except (FileNotFoundError, PermissionError) as e:
+        # Captura o nome do arquivo atual
+        current_file = file_paths[i] if 'i' in locals() else str(file_paths)
+        logging.error(f"{type(e).__name__} ao manipular arquivo: {current_file}: {e}")
+        raise
     except Exception as e:
-        logging.error(f"Erro ao manipular o arquivo {file_path}: {e}")
+        current_file = file_paths[i] if 'i' in locals() else str(file_paths)
+        logging.error(f"Erro ao manipular o arquivo {current_file}: {e}")
         raise ValueError(f"Erro ao manipular o arquivo: {e}")
+    
+def verify_valid_files(repo_path, edited_files):
+    """
+    Verifica os arquivos editados para identificar aqueles que possuem documentação válida.
+
+    Parâmetros:
+        repo_path (str): O caminho do repositório onde os arquivos estão localizados.
+        edited_files (list): Lista de arquivos que foram editados.
+
+    Retorna:
+        list: Uma lista de tuplas, onde cada tupla contém:
+              (arquivo editado, caminho do arquivo de documentação, conteúdo atual da documentação, documentação enumerada).
+              
+    Descrição:
+        Para cada arquivo na lista 'edited_files', a função obtém o caminho do arquivo de documentação correspondente
+        utilizando 'get_doc_path'. Se um caminho é encontrado, são extraídos o conteúdo atual e o conteúdo enumerado da
+        documentação por meio da função 'get_documentation_content'. Se ambos os conteúdos forem válidos, a tupla com os
+        dados pertinentes é adicionada à lista de arquivos com documentação válida, que é retornada ao final.
+    """
+    valid_doc_files = []
+    for source_file in edited_files:
+        doc_path = get_doc_path(repo_path, source_file)
+        if doc_path:
+            current_documentation, enumerated_documentation = get_documentation_content(doc_path)
+            if current_documentation and enumerated_documentation:
+                valid_doc_files.append((source_file, doc_path, current_documentation, enumerated_documentation))
+    return valid_doc_files
 
 def main():
     # Configuração inicial
@@ -289,56 +337,41 @@ def main():
 
     # Obtém os arquivos editados no commit
     edited_files = get_edited_files(repo_path, commit_hash)
-    logging.error(f"Arquivos editados: {edited_files}")
+
+    # Verifica quais arquivos editados possuem documentos válidos associados
+    valid_doc_files = verify_valid_files(repo_path, edited_files)
 
     server_init()
 
     # Para cada arquivo editado que tenha documento associado
-    for source_file in edited_files:
-        # Gera o caminho do arquivo de documentação correspondente
-        doc_path = get_doc_path(repo_path, source_file)
-        if not doc_path:
-            continue
-
+    for i, (source_file, doc_path, current_documentation, enumerated_documentation) in enumerate(valid_doc_files):
         # Obtém o diff específico para o arquivo de origem
         file_diff = get_file_diff(repo_path, commit_hash, source_file)
-
-        # Lê o conteúdo atual da documentação
-        current_documentation, enumerated_documentation = get_documentation_content(doc_path)
 
         # Atualiza a documentação com base no diff específico
         changes = update_documentation_with_llm(file_diff, enumerated_documentation)
 
         # Atualiza o conteúdo da documentação no arquivo
-        updated_lines = update_doc_lines(doc_path, changes)
-        new_documentation = "".join(updated_lines)
+        new_documentation = update_doc_lines(doc_path, changes)
 
         # Verifica se é o último arquivo editado
-        last_index = len(edited_files) - 1
-        current_index = edited_files.index(source_file)
-        continueExec = 0 if current_index == last_index else 1
+        continueExec = 0 if i == len(valid_doc_files) - 1 else 1
 
         # Cria arquivos temporários para exibir as alterações propostas
-        manipulate_file(r"..\public\current_documentation.md", "write", content=current_documentation)
-        manipulate_file(r"..\public\new_documentation.md", "write", content=new_documentation)
-        manipulate_file(r"..\public\continue_exec.txt", "write", content=str(continueExec))
+        manipulate_file([CURRENT, NEW, CONTINUE], "write", contents=[current_documentation, new_documentation, str(continueExec)])
 
         # Exibe as alterações propostas e solicita aprovação
         approved = approve_changes()
 
         if approved:
             # Salva as alterações no arquivo
-            manipulate_file(doc_path, "write_lines", content=updated_lines)
+            manipulate_file(doc_path, "write", contents=new_documentation)
         
         # Limpa os arquivos temporários
-        manipulate_file(r"..\public\current_documentation.md", "clear")
-        manipulate_file(r"..\public\new_documentation.md", "clear")
-        manipulate_file(r"..\public\continue_exec.txt", "clear")
-    
+        manipulate_file([CURRENT, NEW, CONTINUE], "clear")
+
     # Deleta os arquivos temporários
-    manipulate_file(r"..\public\current_documentation.md", "delete")
-    manipulate_file(r"..\public\new_documentation.md", "delete")
-    manipulate_file(r"..\public\continue_exec.txt", "delete")
+    manipulate_file([CURRENT, NEW, CONTINUE], "delete")
 
     # Finaliza o servidor React
     interface.stop_server()
