@@ -1,14 +1,20 @@
+# Standard libraries
+import os
+import os.path
 import sys
-import os, os.path
-import json
 import subprocess
+import logging
+import json
+
+# LangChain libraries
 from langchain_google_genai import GoogleGenerativeAI
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+
+# Auxiliary Functions
 from request import server_init, approve_changes
 from interface_controller import ReactManager
-import logging
 
 # Configuração do log de erros
 logging.basicConfig(
@@ -17,6 +23,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
+# Extensões de arquivos de código-fonte suportadas
 SOURCE_EXTENSIONS = [".java", ".py", ".js", ".ts", ".jsx", ".tsx", ".c",
                   ".cpp", ".cs", ".html", ".rb", ".r", ".php", ".go", ".rs",
                   ".swift", ".sql"] # Pode ser expandido para outras extensões
@@ -124,23 +131,37 @@ def get_documentation_content(doc_path):
         try:
             with open(doc_path, "r", encoding="utf-8") as doc_file:
                 # Lê o conteúdo do arquivo de documentação
-                lines = doc_file.readlines()
-                documentation = "".join(lines)
+                documentation = doc_file.read()
 
                 # Se o arquivo estiver vazio ou não tiver conteúdo, retorna None
-                if not lines or not documentation.strip():
-                    return None, None
-
-                # Prefixa cada linha com o número da linha (base 1)
-                enumerated_documentation = "".join(f"{i+1}: {line}" for i, line in enumerate(lines))
-
-                return documentation, enumerated_documentation
+                if not documentation:
+                    return None
+                
+                return documentation
         except Exception as e:
             logging.error(f"Erro ao ler o arquivo de documentação: {e}")
-            raise ValueError(f"Erro ao ler o arquivo de documentação: {e}")
+            return None
     else:
         logging.error(f"Aviso: Arquivo de documentação não encontrado em {doc_path}")
-        raise ValueError(f"Aviso: Arquivo de documentação não encontrado em {doc_path}")
+        return None
+    
+def enumerate_lines(documentation):
+    """
+    Enumera as linhas de um texto de documentação.
+    Retorna uma string com as linhas numeradas.
+    """
+    # Divide o texto de documentação em linhas
+    lines = documentation.splitlines()
+
+    # Enumera as linhas e as concatena
+    enumerated_documentation = "".join(f"{i+1}: {line}" for i, line in enumerate(lines))
+
+    # Verifica se não houve algum erro
+    if not enumerated_documentation:
+        logging.error("Erro ao enumerar as linhas do texto de documentação.")
+        return None
+    
+    return enumerated_documentation
 
 def update_documentation_with_llm(commit_diff, documentation_content):
     """
@@ -198,6 +219,12 @@ def update_documentation_with_llm(commit_diff, documentation_content):
     # Cria a instância do modelo LLM, neste caso, o Gemini 2.0 Flash 
     llm = GoogleGenerativeAI(model="gemini-2.0-flash-exp")
 
+    # Enumera as linhas do texto de documentação
+    documentation_content = enumerate_lines(documentation_content)
+
+    if not documentation_content:
+        return None
+
     # Cria a cadeia de execução
     chain = (
         RunnablePassthrough.assign(commit_diff=lambda _: commit_diff, documentation_content=lambda _: documentation_content, example=lambda _: example)
@@ -217,7 +244,7 @@ def update_documentation_with_llm(commit_diff, documentation_content):
         return changes
     except Exception as e:
         logging.error(f"Erro ao atualizar a documentação com a LLM: {e}")
-        raise ValueError(f"Erro ao atualizar a documentação com a LLM: {e}")
+        return None
 
 def update_doc_lines(file_path, changes_json):
     try:
@@ -251,7 +278,7 @@ def update_doc_lines(file_path, changes_json):
         
     except Exception as e:
         logging.error(f"Erro ao atualizar a documentação: {e}")
-        raise ValueError(f"Erro ao atualizar a documentação: {e}")
+        return None
     
 def manipulate_file(file_paths, operation, contents=None):
     """
@@ -322,9 +349,9 @@ def verify_valid_files(repo_path, edited_files):
     for source_file in edited_files:
         doc_path = get_doc_path(repo_path, source_file)
         if doc_path:
-            current_documentation, enumerated_documentation = get_documentation_content(doc_path)
-            if current_documentation and enumerated_documentation:
-                valid_doc_files.append((source_file, doc_path, current_documentation, enumerated_documentation))
+            current_documentation = get_documentation_content(doc_path)
+            if current_documentation:
+                valid_doc_files.append((source_file, doc_path, current_documentation))
     return valid_doc_files
 
 def main():
@@ -344,15 +371,18 @@ def main():
     server_init()
 
     # Para cada arquivo editado que tenha documento associado
-    for i, (source_file, doc_path, current_documentation, enumerated_documentation) in enumerate(valid_doc_files):
+    for i, (source_file, doc_path, current_documentation) in enumerate(valid_doc_files):
         # Obtém o diff específico para o arquivo de origem
         file_diff = get_file_diff(repo_path, commit_hash, source_file)
 
         # Atualiza a documentação com base no diff específico
-        changes = update_documentation_with_llm(file_diff, enumerated_documentation)
+        changes = update_documentation_with_llm(file_diff, current_documentation)
 
         # Atualiza o conteúdo da documentação no arquivo
         new_documentation = update_doc_lines(doc_path, changes)
+
+        if not new_documentation:
+            continue # Pode ocorrer o bug de não fechar a janela do navegador, tentarei corrigir isso futuramente
 
         # Verifica se é o último arquivo editado
         continueExec = 0 if i == len(valid_doc_files) - 1 else 1
