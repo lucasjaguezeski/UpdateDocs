@@ -1,3 +1,36 @@
-__pycache__
-node_modules
+# Ignorar diretórios e arquivos gerados automaticamente
+
+## Python
+# Arquivos de cache do Python
+__pycache__/
+*.py[cod]
+
+# Diretórios de ambiente virtual
+venv/
+env/
+
+## PyInstaller
+# Ignorar arquivos e diretórios gerados pelo PyInstaller
+build/
+dist/
+*.spec
+
+## Node.js
+# Ignorar dependências do Node.js
+node_modules/
+
+## Logs
+# Ignorar arquivos de log
+*.log
 errors.log
+
+## IDEs e Editores
+# Ignorar configurações específicas de IDEs
+.vscode/
+.idea/
+
+# Outros arquivos temporários
+*.swp
+*.swo
+.DS_Store  # Sistema macOS
+Thumbs.db  # Sistema Windows

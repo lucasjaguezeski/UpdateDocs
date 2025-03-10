@@ -1,10 +1,17 @@
-import threading
-import uvicorn
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from contextlib import asynccontextmanager
-from fastapi.middleware.cors import CORSMiddleware
+# Standard libraries
 import logging
+import threading
+from contextlib import asynccontextmanager
+
+# FastAPI libraries
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+
+# Pydantic library
+from pydantic import BaseModel
+
+# Uvicorn library
+import uvicorn
 
 logging.basicConfig(
     filename=r'logs\errors.log',  
@@ -77,7 +84,8 @@ def run_server():
         host=SERVER_HOST,
         port=SERVER_PORT,
         log_level="info",
-        timeout_keep_alive=10
+        timeout_keep_alive=600,
+        timeout_graceful_shutdown=30
     )
     server = uvicorn.Server(config)
     server.run()
