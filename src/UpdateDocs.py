@@ -30,7 +30,7 @@ SOURCE_EXTENSIONS = [".java", ".py", ".js", ".ts", ".jsx", ".tsx", ".c",
 
 # Caminhos dos arquivos temporários para exibir as alterações propostas
 CURRENT = r"..\public\current_documentation.md"
-NEW = r"..\public\new_documentation.md"
+ALT = r"..\public\alteracoes.json"
 CONTINUE = r"..\public\continue_exec.txt"
 
 def get_cfg():
@@ -378,30 +378,25 @@ def main():
         # Atualiza a documentação com base no diff específico
         changes = update_documentation_with_llm(file_diff, current_documentation)
 
-        # Atualiza o conteúdo da documentação no arquivo
-        new_documentation = update_doc_lines(doc_path, changes)
-
-        if not new_documentation:
-            continue # Pode ocorrer o bug de não fechar a janela do navegador, tentarei corrigir isso futuramente
-
         # Verifica se é o último arquivo editado
         continueExec = 0 if i == len(valid_doc_files) - 1 else 1
 
         # Cria arquivos temporários para exibir as alterações propostas
-        manipulate_file([CURRENT, NEW, CONTINUE], "write", contents=[current_documentation, new_documentation, str(continueExec)])
+        manipulate_file([CURRENT, ALT, CONTINUE], "write", contents=[current_documentation, changes, str(continueExec)])
 
         # Exibe as alterações propostas e solicita aprovação
         approved = approve_changes()
 
         if approved:
-            # Salva as alterações no arquivo
+            # Salva as alterações no arquivo       
+            new_documentation = update_doc_lines(doc_path, changes)
             manipulate_file(doc_path, "write", contents=new_documentation)
         
         # Limpa os arquivos temporários
-        manipulate_file([CURRENT, NEW, CONTINUE], "clear")
+        manipulate_file([CURRENT, ALT, CONTINUE], "clear")
 
     # Deleta os arquivos temporários
-    manipulate_file([CURRENT, NEW, CONTINUE], "delete")
+    manipulate_file([CURRENT, ALT, CONTINUE], "delete")
 
     # Finaliza o servidor React
     interface.stop_server()

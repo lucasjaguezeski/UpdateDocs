@@ -45,14 +45,15 @@ Follow the steps below to add the script to the Git `post-commit` hook:
     # Capture the latest commit hash
     COMMIT_HASH=$(git rev-parse HEAD)
 
-    # Navigate to the directory where UpdateDocs.py is located
-    cd ~/path/to/UpdateDocs.py || exit
+    # Navigate to the directory where UpdateDocs is located
+    cd ~/path/to/UpdateDocs || exit
 
     # Execute the Python script with the repository path and commit hash
-    # If you are using a virtual environment:
-    #& C:\\path\\to\\venv\\Scripts\\Activate.ps1
+    python src/UpdateDocs.py "$REPO_DIR" "$COMMIT_HASH" >> logs/errors.log 2>&1
 
-    python UpdateDocs.py "$REPO_DIR" "$COMMIT_HASH"
+    # If you are using a Virtual Environment:
+    #~/path/to/UpdateDocs/venv/bin/python src/UpdateDocs.py "$REPO_DIR" "$COMMIT_HASH" >> logs/error.log 2>&1
+    
     ```
 6. **Save and exit the editor** (in Nano: `Ctrl + O` to save and `Ctrl + X` to exit).
 7. **Make the file executable:**

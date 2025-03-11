@@ -5,8 +5,8 @@ import CodeBlock from './CodeBlock';
 const API_URL = 'http://localhost:5000/approve_changes';
 const DOCUMENTATION_FILES = {
   current: 'current_documentation.md',
-  new: 'new_documentation.md',
-  continue_exec: 'continue_exec.txt'
+  continue_exec: 'continue_exec.txt',
+  alteracoes: 'alteracoes.json' 
 };
 
 const RETRY_INTERVAL = 3000;
@@ -38,7 +38,7 @@ class ErrorBoundary extends React.Component {
 function App() {
   const [documentation, setDocumentation] = useState({
     current: '',
-    new: '',
+    alteracoes: [],
     isLoading: true,
     error: null
   });
@@ -49,21 +49,28 @@ function App() {
 
     const fetchWithRetry = async () => {
       try {
-        const [currentDoc, newDoc, continueExec] = await Promise.all([
+        const [currentDoc, continueExec, alteracoesText] = await Promise.all([
           fetchText(DOCUMENTATION_FILES.current),
-          fetchText(DOCUMENTATION_FILES.new),
-          fetchText(DOCUMENTATION_FILES.continue_exec)
+          fetchText(DOCUMENTATION_FILES.continue_exec),
+          fetchText(DOCUMENTATION_FILES.alteracoes).catch(err => '{"alteracoes":[]}')
         ]);
-
-        // Verifica se os arquivos têm conteúdo
-        if (!currentDoc.trim() || !newDoc.trim()) {
-          throw new Error('Arquivos vazios');
+    
+        if (!currentDoc.trim()) {
+          throw new Error('Arquivo vazio');
         }
-
+    
+        let alteracoes = [];
+        try {
+          const alteracoesObj = JSON.parse(alteracoesText);
+          alteracoes = alteracoesObj.alteracoes || [];
+        } catch (error) {
+          console.warn('Erro ao analisar alterações JSON:', error);
+        }
+    
         if (isMounted) {
           setDocumentation({
             current: currentDoc,
-            new: newDoc,
+            alteracoes: alteracoes,
             continueExec: parseInt(continueExec),
             isLoading: false,
             error: null
@@ -141,14 +148,18 @@ function App() {
             title="Current Documentation:"
             code={documentation.current}
             language="markdown"
+            alteracoes={documentation.alteracoes}
+            tipo="atual"
           />
         </div>
 
         <div className="panel panel-right">
           <CodeBlock
-            title="New documentation:"
-            code={documentation.new}
+            title="Proposed Changes:"
+            code={documentation.current}
             language="markdown"
+            alteracoes={documentation.alteracoes}
+            tipo="novo"
           />
         </div>
 

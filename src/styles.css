@@ -78,6 +78,12 @@ body {
     margin-top: 1.8rem;
     margin-bottom: 0;
   }
+
+  .custom-code-block h4 {
+    font-size: 1rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0;
+  }
   
   .custom-code-block pre code {
     font-family: 'Source Code Pro', Consolas, monospace;
@@ -109,10 +115,26 @@ body {
     line-height: 1.5;
   }
 
+  .custom-code-block ol {
+    padding: 1;
+    margin: 0;
+  }
+
+  .custom-code-block ul {
+    padding: 1;
+    margin: 0;
+    line-height: 0.1;
+  }
+
   .custom-code-block li {
     line-height: 1.5;
-    padding: 0rem 0;
+    padding: 0.3rem 0;
     margin: 0rem;
+    white-space: normal;
+  }
+
+  .custom-code-block li p {
+    display: inline; 
   }
 
   .custom-code-block li code {
@@ -128,7 +150,8 @@ body {
 
   .custom-code-block h1:has(code),
   .custom-code-block h2:has(code),
-  .custom-code-block h3:has(code) {
+  .custom-code-block h3:has(code),
+  .custom-code-block h4:has(code) {
     padding-bottom: -1rem;
     background-color: #2C2C2C; 
     display: inline;    
@@ -136,15 +159,7 @@ body {
     border-radius: 4px;
   }
 
-  .custom-code-block h1 code {
-    font-size: inherit;
-  }
-
-  .custom-code-block h2 code {
-    font-size: inherit; 
-  }
-
-  .custom-code-block h3 code {
+  .custom-code-block h1 code, .custom-code-block h2 code, .custom-code-block h3 code, .custom-code-block h4 code {
     font-size: inherit;
   }
 
@@ -216,3 +231,53 @@ body {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
   }
+
+/* Estilos para os segmentos destacados */
+.custom-segments-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.custom-segments-container > div,
+.custom-segments-container > pre {
+  margin: 0;
+  border-radius: 0;
+}
+
+/* Primeiro elemento com bordas arredondadas no topo */
+.custom-segments-container > div:first-child,
+.custom-segments-container > pre:first-child {
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+
+/* Último elemento com bordas arredondadas na base */
+.custom-segments-container > div:last-child,
+.custom-segments-container > pre:last-child {
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+/* Destaque para blocos removidos (vermelho) */
+.highlighted-block-red {
+  background-color: rgba(255, 0, 0, 0.1);
+  border-left: 3px solid #ff0000;
+}
+
+/* Destaque para blocos adicionados (verde) */
+.highlighted-block-green {
+  background-color: rgba(0, 128, 0, 0.1);
+  border-left: 3px solid #008000;
+}
+
+/* Cores para modo escuro */
+@media (prefers-color-scheme: dark) {
+  .highlighted-block-red {
+    background-color: rgba(255, 0, 0, 0.2);
+  }
+
+  .highlighted-block-green {
+    background-color: rgba(0, 255, 0, 0.2);
+  }
+}
