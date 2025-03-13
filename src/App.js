@@ -35,6 +35,27 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+const aplicarAlteracoes = (textoOriginal, alteracoes) => {
+  // Aplicar as alterações no texto da mesma forma que o CodeBlock.js
+  const linhas = textoOriginal.split('\n');
+  const alteracoesOrdenadas = [...alteracoes].sort((a, b) => a.inicio - b.inicio);
+  
+  // Array com segmentos do texto final
+  let resultado = [...linhas];
+  
+  // Aplicar cada alteração na ordem inversa para não afetar os índices
+  [...alteracoesOrdenadas].reverse().forEach(alteracao => {
+    // Ajustar índices para base-0
+    const inicioAjustado = Math.max(0, alteracao.inicio - 1);
+    const fimAjustado = Math.max(0, alteracao.fim - 1);
+    
+    // Substituir o segmento pelo novo conteúdo
+    resultado.splice(inicioAjustado, fimAjustado - inicioAjustado + 1, alteracao.novo_conteudo);
+  });
+  
+  return resultado.join('\n');
+};
+
 function App() {
   const [documentation, setDocumentation] = useState({
     current: '',
@@ -107,14 +128,22 @@ function App() {
 
   const handleApproval = async (isApproved) => {
     try {
+      // Obter o texto final com alterações aplicadas (se aprovado)
+      const finalText = isApproved 
+        ? aplicarAlteracoes(documentation.current, documentation.alteracoes)
+        : "";
+      
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ Approved: isApproved })
+        body: JSON.stringify({ 
+          Approved: isApproved,
+          Data: finalText
+        })
       });
-
+  
       if (!response.ok) throw new Error('Request failed');
-
+  
       const result = await response.json();
       console.log('Server response:', result);
       console.log(`Documentation ${isApproved ? 'approved' : 'rejected'}!`);

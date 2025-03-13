@@ -28,18 +28,20 @@ class ApprovalState:
     def __init__(self):
         self.event = threading.Event()
         self.value = None
+        self.data = ""
         self.lock = threading.Lock()
 
-    def update_value(self, new_value: bool):
+    def update_value(self, new_value: bool, data: str = ""):
         with self.lock:
             self.value = new_value
+            self.data = data
             self.event.set()
 
     def aguardar_valor(self):
         self.event.wait()
         with self.lock:
             self.event.clear()
-            return self.value
+            return self.value, self.data
 
 state = ApprovalState()
 
@@ -68,11 +70,12 @@ app = create_application()
 
 class RequestData(BaseModel):
     Approved: bool
+    Data: str
 
 @app.post('/approve_changes')
 async def receive_approval(data: RequestData):
     try:
-        state.update_value(data.Approved)
+        state.update_value(data.Approved, data.Data)
         return {"status": "success", "code": 200}
     except Exception as e:
         logging.error(f"Error: {e}")
@@ -100,9 +103,9 @@ def server_init():
 
 def approve_changes():
     try:
-        approved = state.aguardar_valor()            
+        approved, data = state.aguardar_valor()            
     except KeyboardInterrupt:
         print("\nInterruption received, closing...")
     finally:
         print("Processing completed.")
-        return approved
+        return approved, data

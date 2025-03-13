@@ -4,7 +4,6 @@ import os.path
 import sys
 import subprocess
 import logging
-import json
 
 # LangChain libraries
 from langchain_google_genai import GoogleGenerativeAI
@@ -245,40 +244,6 @@ def update_documentation_with_llm(commit_diff, documentation_content):
     except Exception as e:
         logging.error(f"Erro ao atualizar a documentação com a LLM: {e}")
         return None
-
-def update_doc_lines(file_path, changes_json):
-    try:
-        # Se changes_json for uma string, converte para dict
-        if isinstance(changes_json, str):
-            changes_json = json.loads(changes_json)
-            
-        changes = changes_json.get("alteracoes", [])
-        
-        # Lê o conteúdo do arquivo em uma lista de linhas
-        with open(file_path, "r", encoding="utf-8") as file:
-            lines = file.readlines()
-        
-        # Ordena as alterações em ordem decrescente pelo número da linha de início
-        # Assim, alterações na parte inferior não interferem nos índices das anteriores.
-        changes.sort(key=lambda alt: int(alt["inicio"]), reverse=True)
-        
-        for change in changes:
-            start = int(change["inicio"])
-            end = int(change["fim"])
-            new_content = change["novo_conteudo"]
-            
-            # Divide o novo conteúdo em linhas e garante que cada linha termine com \n
-            new_lines = new_content.splitlines()
-            new_lines = [line + "\n" for line in new_lines]
-            
-            # Substitui as linhas no intervalo [inicio-1, fim)
-            lines[start - 1: end] = new_lines
-        
-        return "".join(lines)
-        
-    except Exception as e:
-        logging.error(f"Erro ao atualizar a documentação: {e}")
-        return None
     
 def manipulate_file(file_paths, operation, contents=None):
     """
@@ -385,11 +350,9 @@ def main():
         manipulate_file([CURRENT, ALT, CONTINUE], "write", contents=[current_documentation, changes, str(continueExec)])
 
         # Exibe as alterações propostas e solicita aprovação
-        approved = approve_changes()
+        approved, new_documentation = approve_changes()
 
-        if approved:
-            # Salva as alterações no arquivo       
-            new_documentation = update_doc_lines(doc_path, changes)
+        if approved and new_documentation:
             manipulate_file(doc_path, "write", contents=new_documentation)
         
         # Limpa os arquivos temporários
