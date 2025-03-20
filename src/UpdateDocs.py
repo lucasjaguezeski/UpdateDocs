@@ -238,7 +238,7 @@ def main():
         file_diff = get_file_diff(repo_path, commit_hash, source_file)
 
         # Gera as alterações propostas utilizando IA
-        changes = generate_documentation_changes(file_diff, current_documentation)
+        changes = generate_documentation_changes(file_diff, current_documentation, repo_path)
 
         # Verifica se é o último arquivo editado
         continueExec = 0 if i == len(valid_doc_files) - 1 else 1
