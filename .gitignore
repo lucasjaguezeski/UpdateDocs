@@ -34,3 +34,6 @@ errors.log
 *.swo
 .DS_Store  # Sistema macOS
 Thumbs.db  # Sistema Windows
+
+# Variáveis de ambiente
+.env

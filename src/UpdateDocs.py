@@ -5,19 +5,16 @@ import sys
 import subprocess
 import logging
 
-# LangChain libraries
-from langchain_google_genai import GoogleGenerativeAI
-from langchain.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough, RunnableLambda
-
 # Auxiliary Functions
 from request import server_init, approve_changes
 from interface_controller import ReactManager
+from llm_chain import generate_documentation_changes
 
 # Configuração do log de erros
+log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", "errors.log")
+os.makedirs(os.path.dirname(log_path), exist_ok=True)
 logging.basicConfig(
-    filename=r'logs\errors.log',
+    filename=log_path,
     level=logging.ERROR,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
@@ -28,9 +25,10 @@ SOURCE_EXTENSIONS = [".java", ".py", ".js", ".ts", ".jsx", ".tsx", ".c",
                   ".swift", ".sql"] # Pode ser expandido para outras extensões
 
 # Caminhos dos arquivos temporários para exibir as alterações propostas
-CURRENT = r"..\public\current_documentation.md"
-ALT = r"..\public\alteracoes.json"
-CONTINUE = r"..\public\continue_exec.txt"
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CURRENT = os.path.join(base_dir, "public", "current_documentation.md")
+ALT = os.path.join(base_dir, "public", "alteracoes.json")
+CONTINUE = os.path.join(base_dir, "public", "continue_exec.txt")
 
 def get_cfg():
     """
@@ -144,107 +142,6 @@ def get_documentation_content(doc_path):
         logging.error(f"Aviso: Arquivo de documentação não encontrado em {doc_path}")
         return None
     
-def enumerate_lines(documentation):
-    """
-    Enumera as linhas de um texto de documentação.
-    Retorna uma string com as linhas numeradas.
-    """
-    # Divide o texto de documentação em linhas
-    lines = documentation.splitlines()
-
-    # Enumera as linhas e as concatena
-    enumerated_documentation = "".join(f"{i+1}: {line}" for i, line in enumerate(lines))
-
-    # Verifica se não houve algum erro
-    if not enumerated_documentation:
-        logging.error("Erro ao enumerar as linhas do texto de documentação.")
-        return None
-    
-    return enumerated_documentation
-
-def update_documentation_with_llm(commit_diff, documentation_content):
-    """
-    Usa uma LLM (via LangChain) para gerar/atualizar documentação
-    com base no diff do commit e no conteúdo de documentação atual.
-    Retorna a string com o texto de documentação sugerido.
-    """
-
-    # Prompt template para a LLM gerar um json com a documentação a partir do diff do commit
-    prompt_template_str = """
-    Você é um assistente especializado em gerar documentação de software.
-    Receba o diff do commit e o conteúdo atual da documentação e atualize ou adicione
-    linhas que reflitam as alterações feitas no commit.
-
-    Diff do commit:
-    {commit_diff}
-
-    Instrução:
-    Para cada alteração identificada, faça o seguinte:
-    1. Determine a linha inicial e a linha final (usando a contagem a partir de 1) no conteúdo atual da documentação onde a alteração deve ser aplicada.
-    2. Gere o novo conteúdo que deverá substituir o trecho identificado ou ser inserido nesse local. **O novo conteúdo DEVE estar formatado em Markdown**, utilizando as convenções do Markdown (como cabeçalhos, listas, ênfases, etc.), conforme necessário.
-
-    Sua resposta DEVE ser um JSON válido, sem nenhum comentário ou explicação adicional, no seguinte formato:
-
-    {example}
-
-    Certifique-se de:
-    - Utilizar apenas números inteiros para "inicio" e "fim".
-    - Incluir apenas o JSON na resposta, sem textos extras.
-    - Mantenha o estilo da documentação atual, incluindo cabeçalhos, listas, ênfases, etc.
-
-    Documentação existente:
-    {documentation_content}
-    Obs.: As linhas estão numeradas para referência, mas não devem ser parte da resposta.
-    """
-
-    prompt = PromptTemplate(
-        input_variables=["commit_diff", "documentation_content"],
-        template=prompt_template_str
-    )
-
-    example = """
-    {
-    "alteracoes": [
-        {
-        "inicio": 17,
-        "fim": 19,
-        "novo_conteudo": "# Guia de Instalação  \nExecute o comando abaixo para configurar o ambiente:  \nbash install.sh \nCaso encontre problemas, consulte a seção de **Solução de Problemas**."
-        },
-        ... // outras alterações, se houver
-    ]
-    }
-    """
-
-    # Cria a instância do modelo LLM, neste caso, o Gemini 2.0 Flash 
-    llm = GoogleGenerativeAI(model="gemini-2.0-flash-exp")
-
-    # Enumera as linhas do texto de documentação
-    documentation_content = enumerate_lines(documentation_content)
-
-    if not documentation_content:
-        return None
-
-    # Cria a cadeia de execução
-    chain = (
-        RunnablePassthrough.assign(commit_diff=lambda _: commit_diff, documentation_content=lambda _: documentation_content, example=lambda _: example)
-        | prompt
-        | llm.bind(stop=["\n```"])
-        | StrOutputParser()
-        | RunnableLambda(lambda x: (x.replace("```json\n", "")))
-    )
-
-    try:
-        # Executa a cadeia de execução
-        changes = chain.invoke({
-            "commit_diff": commit_diff,
-            "documentation_content": documentation_content
-        })
-    
-        return changes
-    except Exception as e:
-        logging.error(f"Erro ao atualizar a documentação com a LLM: {e}")
-        return None
-    
 def manipulate_file(file_paths, operation, contents=None):
     """
     Manipula arquivos com operações específicas.
@@ -340,8 +237,8 @@ def main():
         # Obtém o diff específico para o arquivo de origem
         file_diff = get_file_diff(repo_path, commit_hash, source_file)
 
-        # Atualiza a documentação com base no diff específico
-        changes = update_documentation_with_llm(file_diff, current_documentation)
+        # Gera as alterações propostas utilizando IA
+        changes = generate_documentation_changes(file_diff, current_documentation)
 
         # Verifica se é o último arquivo editado
         continueExec = 0 if i == len(valid_doc_files) - 1 else 1
